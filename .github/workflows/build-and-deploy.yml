@@ -106,6 +106,13 @@ jobs:
         with:
           version: ${{ env.HELM_VERSION }}
 
+      - name: query variables
+        id: parseEnvironmentVariables
+        uses: mikefarah/yq@master
+        with: 
+          cmd: |
+            echo ${{ secrets[env.CONFIG] }} | base64 -d | yq e '.. | select(. == "*") | {(path | . as $x | (.[] | select((. | tag) == "!!int") |= (["[", ., "]"] | join(""))) | $x | join(".") | sub(".\[", "[")): .} ' - | base64 -w 0
+
       - name: install helm chart
         run: |
           helm upgrade ${{ env.APP_NAME }}-${{ env.APP_REVISION }} \
@@ -115,4 +122,4 @@ jobs:
             --values ${{ inputs.values }} \
             --set environment=${{ env.ENVIRONMENT_LOWER }} \
             --set image=${{ env.IMAGE }}:${{ env.TAG }} \
-            --set config=${{ secrets[env.CONFIG] }}
+            --set config=${{ steps.parseEnvironmentVariables.outputs.result }}
